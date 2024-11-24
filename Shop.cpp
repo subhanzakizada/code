@@ -40,7 +40,7 @@ int Shop::getCustDrops() const {
 // Prints a message with the appropriate prefix based on whether the person is a barber or customer
 void Shop::print(int person, int id, string message) {
     if(person == 0) {  // If the person is a barber (person == 0)
-        cout << "barber[" << id << "]: " << message << endl;  
+        cout << "barber  [" << id << "]: " << message << endl;  
     } else {  // If the person is a customer
         cout << "customer[" << id << "]: " << message << endl;  
     }
