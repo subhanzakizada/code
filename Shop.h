@@ -62,7 +62,7 @@ private:
 
     pthread_mutex_t mutex_; // Mutex for synchronizing access to shared resources
 
-    static const int barberId = 0; // Default barber ID (used for a single barber scenario)
+    // static const int barberId = 0; // Default barber ID (used for a single barber scenario)
 
     // Utility functions
     Barber* getBarber(int barberId); // Retrieve a pointer to a barber object by ID
