@@ -1,92 +1,126 @@
-#include <iostream>    // cout
-#include <sys/time.h> // gettimeofday
-#include <unistd.h> //usleep
+#include <iostream>
+#include <sys/time.h>
+#include <unistd.h>
 #include "Shop.h"
 
 using namespace std;
 
-// function prototype
-void *barber( void * );    // the prototype of the barber thread function
-void *customer( void * );  // the prototype of the customer thread function
+void *barber(void *);    
+void *customer(void *);  
 
-// a set of parameters to be passed to each thread
+// A class to pass parameters to threads
 class ThreadParam {
 public:
-  ThreadParam( Shop *shop, int id, int serviceTime ) :
-    shop( shop ), id( id ), serviceTime( serviceTime ) { };
-  Shop *shop;               // a pointer to the Shop object
-  int id;                   // a thread identifier
-  int serviceTime;          // service time (in usec) to a barber, whereas 0 to a customer
+    ThreadParam(Shop *shop, int id, int serviceTime) :
+        shop(shop), id(id), serviceTime(serviceTime) {}
+    Shop *shop;          // Pointer to the Shop object
+    int id;              // Thread identifier
+    int serviceTime;     // Service time in microseconds (0 for customers)
 };
 
-int main( int argc, char *argv[] ) {
+int main(int argc, char *argv[]) {
+    // Validate the number of command-line arguments
+    if (argc != 5) {
+        cerr << "Usage: sleepingBarber nBarbers nChairs nCustomers serviceTime" << endl;
+        return -1;
+    }
 
-  // validate the arguments
-  if ( argc != 5 ) {
-    cerr << "usage: sleepingBarber nBaerbers nChairs nCustomers serviceTime" << endl;
-    return -1;
-  }
-  int nBarbers = atoi( argv[1] );      // # barbers working in the barbershop
-  int nChairs = atoi( argv[2] );       // # chairs available for customers to wait on
-  int nCustomers = atoi( argv[3] );    // # customers who need a haircut service
-  int serviceTime = atoi( argv[4] );   // each barber's service time ( in u seconds)
+    // Parse and validate command-line arguments
+    int nBarbers = atoi(argv[1]);
+    int nChairs = atoi(argv[2]);
+    int nCustomers = atoi(argv[3]);
+    int serviceTime = atoi(argv[4]);
 
-  pthread_t barber_thread[nBarbers];
-  pthread_t customer_threads[nCustomers];
-  Shop shop( nBarbers, nChairs );      // instantiate a barbershop
-  
-  for ( int i = 0; i < nBarbers; i++ ) {   // instantiate barbers
-    ThreadParam *param = new ThreadParam( &shop, i, serviceTime );
-    pthread_create( &barber_thread[i], NULL, barber, (void *)param );
-  }
-  for ( int i = 0; i < nCustomers; i++ ) { // instantiate customers
-    usleep( rand( ) % 1000 );              // with random interval
-    ThreadParam *param = new ThreadParam( &shop, i + 1, 0 );
-    pthread_create( &customer_threads[i], NULL, customer, (void *)param );
-  }
+    if (nBarbers <= 0) {
+        cerr << "Error: Number of barbers must be greater than 0." << endl;
+        return -1;
+    }
+    if (nChairs < 0) {
+        cerr << "Error: Number of chairs cannot be negative." << endl;
+        return -1;
+    }
+    if (nCustomers <= 0) {
+        cerr << "Error: Number of customers must be greater than 0." << endl;
+        return -1;
+    }
+    if (serviceTime <= 0) {
+        cerr << "Error: Service time must be greater than 0." << endl;
+        return -1;
+    }
 
-  for ( int i = 0; i < nCustomers; i++ )   // wait until all the customers are served
-    pthread_join( customer_threads[i], NULL );
+    pthread_t barberThreads[nBarbers];
+    pthread_t customerThreads[nCustomers];
+    Shop shop(nBarbers, nChairs);  // Instantiate the shop
 
-  for ( int i = 0; i < nBarbers; i++ )     // terminate all the barbers
-    pthread_cancel( barber_thread[i] );
-  cout << "# customers who didn't receive a service = " << shop.nDropsOff
-       << endl;
+    // Create barber threads
+    for (int i = 0; i < nBarbers; i++) {
+        ThreadParam *param = new ThreadParam(&shop, i, serviceTime);
+        if (pthread_create(&barberThreads[i], nullptr, barber, param) != 0) {
+            cerr << "Error: Failed to create barber thread " << i << "." << endl;
+            delete param;
+            return -1;
+        }
+    }
 
-  return 0;
+    // Create customer threads
+    for (int i = 0; i < nCustomers; i++) {
+        usleep(rand() % 1000);  // Random delay before creating each customer
+        ThreadParam *param = new ThreadParam(&shop, i + 1, 0);
+        if (pthread_create(&customerThreads[i], nullptr, customer, param) != 0) {
+            cerr << "Error: Failed to create customer thread " << i + 1 << "." << endl;
+            delete param;
+            continue;  // Skip this customer and proceed with the next
+        }
+    }
+
+    // Wait for all customer threads to finish
+    for (int i = 0; i < nCustomers; i++) {
+        if (pthread_join(customerThreads[i], nullptr) != 0) {
+            cerr << "Warning: Failed to join customer thread " << i + 1 << "." << endl;
+        }
+    }
+
+    // Terminate barber threads
+    for (int i = 0; i < nBarbers; i++) {
+        if (pthread_cancel(barberThreads[i]) != 0) {
+            cerr << "Warning: Failed to cancel barber thread " << i << "." << endl;
+        }
+    }
+
+    // Print the number of customers who didn't receive service
+    cout << "# customers who didn't receive a service = " << shop.nDropsOff << endl;
+
+    return 0;
 }
 
-// the barber thread function
-void *barber( void *arg ) {
+void *barber(void *arg) {
+    ThreadParam &param = *(ThreadParam *)arg;
+    Shop &shop = *(param.shop);
+    int id = param.id;
+    int serviceTime = param.serviceTime;
+    delete &param;
 
-  // extract parameters
-  ThreadParam &param = *(ThreadParam *)arg;
-  Shop &shop = *(param.shop);
-  int id = param.id;
-  int serviceTime = param.serviceTime;
-  delete &param;
-
-  // keep working until being terminated by the main
-  while( true ) {
-    shop.helloCustomer( id );  // pick up a new customer
-    usleep( serviceTime );     // spend a service time
-    shop.byeCustomer( id );    // release the customer
-  }
-  return NULL;
+    // Barber's work loop
+    while (true) {
+        shop.helloCustomer(id);  // Signal readiness to serve a customer
+        usleep(serviceTime);     // Simulate haircut service time
+        shop.byeCustomer(id);    // Signal service completion
+    }
+    return nullptr;
 }
 
-// the customer thread function
-void *customer( void *arg ) {
+void *customer(void *arg) {
+    ThreadParam &param = *(ThreadParam *)arg;
+    Shop &shop = *(param.shop);
+    int id = param.id;
+    delete &param;
 
-  // extract parameters
-  ThreadParam &param = *(ThreadParam *)arg;
-  Shop &shop = *(param.shop);
-  int id = param.id;
-  delete &param;
-
-  int barber = -1;
-  if ( ( barber = shop.visitShop( id ) ) != -1 ) // am I assigned to barber i or no barber (-1)?
-    shop.leaveShop( id, barber );                // wait until my service is finished
-
-  return NULL;
+    // Customer's visit to the shop
+    int barber = shop.visitShop(id);
+    if (barber != -1) {  // If assigned a barber
+        shop.leaveShop(id, barber);  // Wait for service to finish
+    } else {
+        cerr << "Customer " << id << " couldn't get a haircut due to full capacity." << endl;
+    }
+    return nullptr;
 }
