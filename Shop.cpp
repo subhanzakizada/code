@@ -212,6 +212,18 @@ void Shop::byeCustomer(int barberId) {
 
 // Destructor to clean up memory allocated for the barbers
 Shop::~Shop() {
-    delete[] barbers;  // Free dynamically allocated memory for barbers
-    pthread_mutex_destroy(&mutex_);  // Destroy the mutex before exiting
+    // Free dynamically allocated memory for barbers
+    for (int i = 0; i < barber_cnt_; i++) {
+        pthread_cond_destroy(&barbers[i].barberCond); // Destroy each barber's condition variable
+    }
+    delete[] barbers;  // Delete barber array
+
+    // Destroy customer condition variables
+    for (auto& customerEntry : customers) {
+        pthread_cond_destroy(&customerEntry.second.customerCond); // Destroy customer condition variable
+    }
+
+    // Destroy the shop mutex
+    pthread_mutex_destroy(&mutex_);
 }
+
