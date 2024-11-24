@@ -34,8 +34,8 @@ public:
     int nDropsOff = 0;
 
 private:
-    const int nChairs;  // Maximum number of customers that can wait in the shop
-    int nBarbers;       // Number of barbers available in the shop
+    const int chair_cnt_;  // Maximum number of customers that can wait in the shop
+    int barber_cnt_;       // Number of barbers available in the shop
 
     // Struct to represent a barber
     struct Barber {

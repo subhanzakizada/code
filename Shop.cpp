@@ -6,8 +6,8 @@ void Shop::init() {
     pthread_mutex_init(&mutex_, NULL);
 
     // Initialize barber objects and their condition variables
-    barbers = new Barber[nBarbers];  // Dynamically allocate an array of barbers
-    for (int i = 0; i < nBarbers; i++) {
+    barbers = new Barber[barber_cnt_];  // Dynamically allocate an array of barbers
+    for (int i = 0; i < barber_cnt_; i++) {
         barbers[i].id = i;  // Assign each barber a unique ID
         barbers[i].in_service_ = false;  // Initially, no barber is in service
         barbers[i].money_paid_ = false;  // Initially, no customer has paid
@@ -37,14 +37,14 @@ void Shop::print(int person, int id, string message) {
 }
 
 // Constructor that takes the number of barbers and chairs
-Shop::Shop(int nBarbers, int nChairs)
-    : nBarbers(nBarbers), nChairs(nChairs) {
+Shop::Shop(int barbers, int chairs)
+    : barber_cnt_(barbers), chair_cnt_(chairs) {
     init();  // Initialize the shop with given values
 }
 
 // Default constructor, initializes the shop with default number of barbers and chairs
 Shop::Shop()
-    : nBarbers(kDefaultNumBarbers), nChairs(kDefaultNumChairs) {
+    : barber_cnt_(kDefaultNumBarbers), chair_cnt_(kDefaultNumChairs) {
     init();  // Initialize the shop with default values
 }
 
@@ -53,7 +53,7 @@ int Shop::visitShop(int customerId) {
     pthread_mutex_lock(&mutex_);  // Lock the mutex to enter critical section
 
     // If there are no available chairs and no sleeping barbers, the customer leaves
-    if ((int)waitingCustomers.size() == nChairs && sleepingBarbers.empty()) {
+    if ((int)waitingCustomers.size() == chair_cnt_ && sleepingBarbers.empty()) {
         print(1, customerId, "leaves the shop because of no available waiting chairs.");
         nDropsOff++;  // Increment the number of customers who left
         pthread_mutex_unlock(&mutex_);  // Unlock the mutex before returning
@@ -71,7 +71,7 @@ int Shop::visitShop(int customerId) {
     if (sleepingBarbers.empty()) {
         waitingCustomers.push(customerId);  // Add customer to the waiting queue
         print(1, customerId, "takes a waiting chair. # waiting seats available = " + 
-            int2string(static_cast<int>(nChairs - waitingCustomers.size())));
+            int2string(static_cast<int>(chair_cnt_ - waitingCustomers.size())));
 
         // Wait for the barber to become available (barber assigned to the customer)
         while (customers[customerId].myBarber == -1) {
@@ -90,7 +90,7 @@ int Shop::visitShop(int customerId) {
     // Print message to indicate the customer has moved to the service chair
     print(1, customerId, "moves to a service chair[" + int2string(barberId) + 
         "]. # waiting seats available = " + 
-        int2string(static_cast<int>(nChairs - waitingCustomers.size())));
+        int2string(static_cast<int>(chair_cnt_ - waitingCustomers.size())));
 
     // Update the customer's state and barber's status
     customers[customerId].state = "C";
@@ -192,7 +192,7 @@ void Shop::byeCustomer(int barberId) {
 
 // Function to get the barber object based on the barber ID
 Shop::Barber* Shop::getBarber(int barberId) {
-    for (int i = 0; i < nBarbers; i++) {
+    for (int i = 0; i < barber_cnt_; i++) {
         if (barbers[i].id == barberId) {
             return &barbers[i];  // Return the barber with the matching ID
         }
