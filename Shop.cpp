@@ -93,7 +93,7 @@ int Shop::visitShop(int customerId) {
         int2string(static_cast<int>(nChairs - waitingCustomers.size())));
 
     // Update the customer's state and barber's status
-    customers[customerId].state = CHAIR;
+    customers[customerId].state = "C";
     getBarber(barberId)->in_service_ = true;  // Barber starts working on this customer
     pthread_cond_signal(&(getBarber(barberId)->barberCond));  // Signal the barber to start working
     pthread_mutex_unlock(&mutex_);  // Unlock the mutex before returning
@@ -116,7 +116,7 @@ void Shop::leaveShop(int customerId, int barberId) {
     print(1, customerId, "says goodbye to barber[" + to_string(barberId) + "].");
 
     // Change the customer's state to LEAVING
-    customers[customerId].state = LEAVING;
+    customers[customerId].state = "L";
 
     // Mark the customer as having paid the barber
     getBarber(barberId)->money_paid_ = true;
@@ -143,7 +143,7 @@ void Shop::helloCustomer(int barberId) {
     }
 
     // Wait until the customer is seated in the service chair
-    while (customers[getBarber(barberId)->myCustomer].state != CHAIR) {
+    while (customers[getBarber(barberId)->myCustomer].state != "C") {
         pthread_cond_wait(&(getBarber(barberId)->barberCond), &mutex_);
     }
 

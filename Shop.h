@@ -37,9 +37,6 @@ private:
     const int nChairs;  // Maximum number of customers that can wait in the shop
     int nBarbers;       // Number of barbers available in the shop
 
-    // Possible states for a customer in the shop
-    enum customerState { WAIT, CHAIR, LEAVING };
-
     // Struct to represent a barber
     struct Barber {
         int id;                            // Barber ID
@@ -53,7 +50,7 @@ private:
     struct Customer {
         int id;                            // Customer ID
         pthread_cond_t customerCond;       // Condition variable for this customer
-        customerState state = WAIT;        // Current state of the customer (default is waiting)
+        string state = "W";        // W(waiting), C(on chair), L(leaving)
         int myBarber = -1;                 // ID of the assigned barber (-1 if none)
     };
 
