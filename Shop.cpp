@@ -1,9 +1,8 @@
 #include "Shop.h"
 
-// Initializes the shop by creating barbers, setting initial conditions, and initializing mutexes
-void Shop::init() {
-    // Initialize mutex to handle synchronization between threads
-    pthread_mutex_init(&mutex_, NULL);
+// Initializes the synchronization primitives (mutexes and condition variables)
+void Shop::initSyncPrimitives() {
+    pthread_mutex_init(&mutex_, NULL);  // Initialize the mutex for the shop
 
     // Initialize barber objects and their condition variables
     barbers = new Barber[barber_cnt_];  // Dynamically allocate an array of barbers
@@ -13,6 +12,17 @@ void Shop::init() {
         barbers[i].money_paid_ = false;  // Initially, no customer has paid
         pthread_cond_init(&barbers[i].barberCond, NULL);  // Initialize barber condition variables
     }
+
+    // Initialize condition variables for each customer
+    for (auto& customerEntry : customers) {
+        pthread_cond_init(&customerEntry.second.customerCond, NULL);
+    }
+}
+
+// Initializes the shop by creating barbers, setting initial conditions, and initializing mutexes
+void Shop::init() {
+    // Call initSyncPrimitives to handle all initialization tasks
+    initSyncPrimitives();
 }
 
 // Converts an integer to a string
@@ -39,13 +49,13 @@ void Shop::print(int person, int id, string message) {
 // Constructor that takes the number of barbers and chairs
 Shop::Shop(int barbers, int chairs)
     : barber_cnt_(barbers), chair_cnt_(chairs) {
-    init();  // Initialize the shop with given values
+    initSyncPrimitives();  // Initialize synchronization primitives
 }
 
 // Default constructor, initializes the shop with default number of barbers and chairs
 Shop::Shop()
     : barber_cnt_(kDefaultNumBarbers), chair_cnt_(kDefaultNumChairs) {
-    init();  // Initialize the shop with default values
+    initSyncPrimitives();  // Initialize synchronization primitives
 }
 
 // Function to handle a customer visiting the shop
@@ -127,6 +137,16 @@ void Shop::leaveShop(int customerId, int barberId) {
     pthread_mutex_unlock(&mutex_);  // Unlock the mutex before returning
 }
 
+// Function to get the barber object based on the barber ID
+Shop::Barber* Shop::getBarber(int barberId) {
+    for (int i = 0; i < barber_cnt_; i++) {
+        if (barbers[i].id == barberId) {
+            return &barbers[i];  // Return the barber with the matching ID
+        }
+    }
+    return NULL;  // Barber not found, return NULL
+}
+
 // Function to handle the barber greeting and starting a haircut for a customer
 void Shop::helloCustomer(int barberId) {
     pthread_mutex_lock(&mutex_);  // Lock the mutex to enter critical section
@@ -188,16 +208,6 @@ void Shop::byeCustomer(int barberId) {
     }
 
     pthread_mutex_unlock(&mutex_);  // Unlock the mutex before returning
-}
-
-// Function to get the barber object based on the barber ID
-Shop::Barber* Shop::getBarber(int barberId) {
-    for (int i = 0; i < barber_cnt_; i++) {
-        if (barbers[i].id == barberId) {
-            return &barbers[i];  // Return the barber with the matching ID
-        }
-    }
-    return NULL;  // Barber not found, return NULL
 }
 
 // Destructor to clean up memory allocated for the barbers
